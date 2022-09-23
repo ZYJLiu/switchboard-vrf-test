@@ -1,3 +1,5 @@
+use std::f32::MIN;
+
 use crate::*;
 
 use anchor_spl::{
@@ -20,6 +22,7 @@ pub struct ConsumeRandomness<'info> {
     pub state: AccountLoader<'info, VrfClientState>,
     pub vrf: AccountLoader<'info, VrfAccountData>,
     pub lootbox: Account<'info, Lootbox>,
+    pub payer: Signer<'info>,
 }
 
 #[derive(Clone, AnchorSerialize, AnchorDeserialize)]
@@ -66,18 +69,41 @@ impl ConsumeRandomness<'_> {
         }
 
         if result == 1 {
-            msg!("Mint One: {:?}", ctx.accounts.lootbox.mint_one.to_string());
+            msg!("Mint One: {:?}", ctx.accounts.lootbox.mint_one);
+            let token_address = get_associated_token_address(
+                &ctx.accounts.payer.key(),
+                &ctx.accounts.lootbox.mint_one,
+            );
+            state.token_account = token_address;
+            state.mint = ctx.accounts.lootbox.mint_one;
+
+            // let accounts = MintReward {
+            //     mint: ctx.accounts.lootbox.mint_one.to_account_info(),
+            //     token_account:,
+            //     user:
+            // };
+            // let ctx = Context::new(ctx.program_id, &mut accounts, remaining_accounts);
+            // cpi::mint_rewards(ctx)
         }
 
         if result == 2 {
-            msg!("Mint Two: {:?}", ctx.accounts.lootbox.mint_two.to_string());
+            msg!("Mint Two: {:?}", ctx.accounts.lootbox.mint_two);
+            let token_address = get_associated_token_address(
+                &ctx.accounts.payer.key(),
+                &ctx.accounts.lootbox.mint_two,
+            );
+            state.token_account = token_address;
+            state.mint = ctx.accounts.lootbox.mint_two
         }
 
         if result == 3 {
-            msg!(
-                "Mint Three: {:?}",
-                ctx.accounts.lootbox.mint_three.to_string()
+            msg!("Mint Three: {:?}", ctx.accounts.lootbox.mint_three);
+            let token_address = get_associated_token_address(
+                &ctx.accounts.payer.key(),
+                &ctx.accounts.lootbox.mint_three,
             );
+            state.token_account = token_address;
+            state.mint = ctx.accounts.lootbox.mint_three
         }
         Ok(())
     }

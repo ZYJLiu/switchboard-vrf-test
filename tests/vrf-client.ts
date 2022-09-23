@@ -6,9 +6,13 @@ import {
   promiseWithTimeout,
 } from "@switchboard-xyz/sbv2-utils"
 import * as sbv2 from "@switchboard-xyz/switchboard-v2"
-import { PublicKey } from "@solana/web3.js"
+import { PublicKey, SYSVAR_RENT_PUBKEY } from "@solana/web3.js"
 import { TOKEN_PROGRAM_ID } from "@project-serum/anchor/dist/cjs/utils/token"
-import { createMint } from "@solana/spl-token"
+import {
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  createMint,
+  getAccount,
+} from "@solana/spl-token"
 
 describe("vrf-client", () => {
   // Configure the client to use the local cluster.
@@ -54,7 +58,7 @@ describe("vrf-client", () => {
       `\u2714 Switchboard localnet environment loaded successfully\n`
     )
     ;[mintAuth] = await anchor.web3.PublicKey.findProgramAddress(
-      [Buffer.from("mint")],
+      [Buffer.from("MINT_AUTH")],
       program.programId
     )
 
@@ -111,6 +115,7 @@ describe("vrf-client", () => {
           { pubkey: vrfClientKey, isSigner: false, isWritable: true },
           { pubkey: vrfKeypair.publicKey, isSigner: false, isWritable: false },
           { pubkey: lootbox, isSigner: false, isWritable: false },
+          { pubkey: payer.publicKey, isSigner: true, isWritable: false },
         ],
         ixData: new anchor.BorshInstructionCoder(program.idl).encode(
           "consumeRandomness",
@@ -150,7 +155,7 @@ describe("vrf-client", () => {
     // init vrf state account
     const tx = await program.methods
       .initClient({
-        maxResult: new anchor.BN(3),
+        maxResult: new anchor.BN(1),
       })
       .accounts({
         state: vrfClientKey,
@@ -213,6 +218,40 @@ describe("vrf-client", () => {
     const result = await awaitCallback(program, vrfClientKey, 20_000)
 
     console.log(`VrfClient Result: ${result}`)
+
+    const updated_state = await program.account.vrfClientState.fetch(
+      vrfClientKey
+    )
+
+    console.log(updated_state.mint.toString())
+    console.log(updated_state.tokenAccount.toString())
+
+    return
+  })
+
+  it("mint_reward", async () => {
+    const state = await program.account.vrfClientState.fetch(vrfClientKey)
+
+    const request_signature = await program.methods
+      .mintRewards()
+      .accounts({
+        mint: state.mint,
+        tokenAccount: state.tokenAccount,
+        mintAuthority: mintAuth,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        rent: SYSVAR_RENT_PUBKEY,
+        systemProgram: anchor.web3.SystemProgram.programId,
+        user: payer.publicKey,
+      })
+      .rpc()
+
+    console.log(
+      `request_randomness transaction signature: ${request_signature}`
+    )
+
+    const account = await getAccount(connection, state.tokenAccount)
+    console.log(account.amount)
 
     return
   })

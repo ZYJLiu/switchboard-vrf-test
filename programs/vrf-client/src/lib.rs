@@ -4,10 +4,15 @@ pub mod actions;
 pub use actions::*;
 
 pub use anchor_lang::solana_program::clock;
-pub use anchor_spl::token::{Mint, Token, TokenAccount};
+pub use anchor_spl::{
+    associated_token::{get_associated_token_address, AssociatedToken},
+    token::{self, Mint, MintTo, Token, TokenAccount},
+};
 pub use switchboard_v2::{
     OracleQueueAccountData, PermissionAccountData, SbState, VrfAccountData, VrfRequestRandomness,
 };
+
+// use crate::cpi::*;
 
 declare_id!("5sbGMk8e86ukQ6wiWYZkfgc4zSs8D8VuD3jn9KkW5fWC");
 
@@ -39,10 +44,15 @@ pub mod vrf_client {
     ) -> Result<()> {
         ConsumeRandomness::actuate(&ctx, &params)
     }
+
+    pub fn mint_rewards(mut ctx: Context<MintReward>) -> Result<()> {
+        MintReward::actuate(&mut ctx)
+    }
 }
 
 const STATE_SEED: &[u8] = b"CLIENTSEED";
 const LOOTBOX_SEED: &[u8] = b"LOOTBOX";
+const MINT_AUTH_SEED: &[u8] = b"MINT_AUTH";
 
 #[repr(packed)]
 #[account(zero_copy)]
@@ -54,6 +64,8 @@ pub struct VrfClientState {
     pub result: u128,
     pub timestamp: i64,
     pub vrf: Pubkey,
+    pub mint: Pubkey,
+    pub token_account: Pubkey,
 }
 
 #[account]

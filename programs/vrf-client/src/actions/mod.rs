@@ -4,6 +4,9 @@ pub use init_client::*;
 pub mod init_lootbox;
 pub use init_lootbox::*;
 
+pub mod mint_reward;
+pub use mint_reward::*;
+
 pub mod request_randomness;
 pub use request_randomness::*;
 

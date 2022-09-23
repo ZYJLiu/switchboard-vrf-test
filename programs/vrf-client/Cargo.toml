@@ -12,8 +12,8 @@ name = "vrf_client"
 no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
-cpi = ["no-entrypoint"]
-default = []
+cpi = []
+default = ["cpi"]
 
 [dependencies]
 anchor-lang = { version = "0.25.0", features = ["init-if-needed"] }
