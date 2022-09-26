@@ -26,6 +26,8 @@ pub struct InitClient<'info> {
 #[derive(Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct InitClientParams {
     pub max_result: u64,
+    pub switchboard_state_bump: u8,
+    pub vrf_permission_bump: u8,
 }
 
 impl InitClient<'_> {
@@ -45,6 +47,8 @@ impl InitClient<'_> {
         *state = VrfClientState::default();
         state.bump = ctx.bumps.get("state").unwrap().clone();
         state.vrf = ctx.accounts.vrf.key();
+        state.switchboard_state_bump = params.switchboard_state_bump;
+        state.vrf_permission_bump = params.vrf_permission_bump;
 
         if params.max_result == 0 {
             state.max_result = 1337;

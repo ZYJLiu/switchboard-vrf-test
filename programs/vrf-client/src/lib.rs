@@ -14,7 +14,7 @@ pub use switchboard_v2::{
 
 // use crate::cpi::*;
 
-declare_id!("HdouAH5FeuxSUoeGJvLHibgW4cnfsuhqrrLwFhiZzQoa");
+declare_id!("8TKB1nCyyGQJcaLNUhzy4igHYdomDAh9bPtiv1v5ineb");
 
 #[program]
 pub mod vrf_client {
@@ -29,12 +29,8 @@ pub mod vrf_client {
         InitClient::actuate(&ctx, &params)
     }
 
-    #[access_control(ctx.accounts.validate(&ctx, &params))]
-    pub fn request_randomness(
-        ctx: Context<RequestRandomness>,
-        params: RequestRandomnessParams,
-    ) -> Result<()> {
-        RequestRandomness::actuate(&ctx, &params)
+    pub fn request_randomness(ctx: Context<RequestRandomness>) -> Result<()> {
+        RequestRandomness::actuate(&ctx)
     }
 
     #[access_control(ctx.accounts.validate(&ctx, &params))]
@@ -66,6 +62,9 @@ pub struct VrfClientState {
     pub vrf: Pubkey,
     pub mint: Pubkey,
     pub token_account: Pubkey,
+    pub switchboard_state_bump: u8,
+    pub vrf_permission_bump: u8,
+    pub redeemable: bool,
 }
 
 #[account]
@@ -87,6 +86,8 @@ pub enum VrfClientErrorCode {
     InvalidVrfAccount,
     #[msg("Not a valid Switchboard account")]
     InvalidSwitchboardAccount,
+    #[msg("Already Redeemed")]
+    AlreadyRedeemed,
 }
 
 #[event]

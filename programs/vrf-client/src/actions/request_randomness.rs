@@ -1,7 +1,7 @@
 use crate::*;
 
 #[derive(Accounts)]
-#[instruction(params: RequestRandomnessParams)] // rpc parameters hint
+// #[instruction(params: RequestRandomnessParams)] // rpc parameters hint
 pub struct RequestRandomness<'info> {
     #[account(
         mut,
@@ -78,13 +78,11 @@ pub struct RequestRandomnessParams {
 }
 
 impl RequestRandomness<'_> {
-    pub fn validate(&self, _ctx: &Context<Self>, _params: &RequestRandomnessParams) -> Result<()> {
-        Ok(())
-    }
-
-    pub fn actuate(ctx: &Context<Self>, params: &RequestRandomnessParams) -> Result<()> {
+    pub fn actuate(ctx: &Context<Self>) -> Result<()> {
         let client_state = ctx.accounts.state.load()?;
         let bump = client_state.bump.clone();
+        let switchboard_state_bump = client_state.switchboard_state_bump;
+        let vrf_permission_bump = client_state.vrf_permission_bump;
         let max_result = client_state.max_result;
         drop(client_state);
 
@@ -111,13 +109,14 @@ impl RequestRandomness<'_> {
         msg!("requesting randomness");
         vrf_request_randomness.invoke_signed(
             switchboard_program,
-            params.switchboard_state_bump,
-            params.permission_bump,
+            switchboard_state_bump,
+            vrf_permission_bump,
             state_seeds,
         )?;
 
         let mut client_state = ctx.accounts.state.load_mut()?;
         client_state.result = 0;
+        client_state.redeemable = true;
 
         emit!(RandomnessRequested {
             vrf_client: ctx.accounts.state.key(),

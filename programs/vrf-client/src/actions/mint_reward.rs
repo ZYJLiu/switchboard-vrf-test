@@ -3,6 +3,8 @@ use crate::*;
 #[derive(Accounts)]
 pub struct MintReward<'info> {
     #[account(mut)]
+    pub state: AccountLoader<'info, VrfClientState>,
+    #[account(mut)]
     pub mint: Account<'info, Mint>,
     #[account(
         init_if_needed,
@@ -25,6 +27,12 @@ pub struct MintReward<'info> {
 // distribute "coupon" token by minting
 impl MintReward<'_> {
     pub fn actuate(ctx: &mut Context<Self>) -> Result<()> {
+        let mut client_state = ctx.accounts.state.load_mut()?;
+        if client_state.redeemable != true {
+            return Err(error!(VrfClientErrorCode::AlreadyRedeemed));
+        }
+        client_state.redeemable = false;
+
         let seeds = &[MINT_AUTH_SEED, &[*ctx.bumps.get("mint_authority").unwrap()]];
         let signer = [&seeds[..]];
 
