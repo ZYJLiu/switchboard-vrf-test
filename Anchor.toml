@@ -1,21 +1,21 @@
 [features]
 seeds = false
 skip-lint = false
-[programs.localnet]
-vrf_client = "5sbGMk8e86ukQ6wiWYZkfgc4zSs8D8VuD3jn9KkW5fWC"
+[programs.devnet]
+vrf_client = "HdouAH5FeuxSUoeGJvLHibgW4cnfsuhqrrLwFhiZzQoa"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "/home/johnliu/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
 
 [test]
-startup_wait = 10000
+startup_wait = 20000
 
 [test.validator]
 url = "https://devnet.genesysgo.net/"

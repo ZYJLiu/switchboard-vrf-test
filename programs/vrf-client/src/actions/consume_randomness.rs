@@ -1,11 +1,4 @@
-use std::f32::MIN;
-
 use crate::*;
-
-use anchor_spl::{
-    associated_token::AssociatedToken,
-    token::{Approve, Mint, MintTo, Revoke, Token, TokenAccount},
-};
 
 #[derive(Accounts)]
 #[instruction(params: ConsumeRandomnessParams)] // rpc parameters hint
@@ -22,7 +15,8 @@ pub struct ConsumeRandomness<'info> {
     pub state: AccountLoader<'info, VrfClientState>,
     pub vrf: AccountLoader<'info, VrfAccountData>,
     pub lootbox: Account<'info, Lootbox>,
-    pub payer: Signer<'info>,
+    /// CHECK:
+    pub payer: AccountInfo<'info>,
 }
 
 #[derive(Clone, AnchorSerialize, AnchorDeserialize)]
@@ -76,14 +70,6 @@ impl ConsumeRandomness<'_> {
             );
             state.token_account = token_address;
             state.mint = ctx.accounts.lootbox.mint_one;
-
-            // let accounts = MintReward {
-            //     mint: ctx.accounts.lootbox.mint_one.to_account_info(),
-            //     token_account:,
-            //     user:
-            // };
-            // let ctx = Context::new(ctx.program_id, &mut accounts, remaining_accounts);
-            // cpi::mint_rewards(ctx)
         }
 
         if result == 2 {

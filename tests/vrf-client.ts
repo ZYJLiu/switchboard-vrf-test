@@ -1,3 +1,6 @@
+// localhost test command
+//sbv2 anchor test --keypair ~/.config/solana/id.json -s
+
 import * as anchor from "@project-serum/anchor"
 import { Program } from "@project-serum/anchor"
 import { VrfClient } from "../target/types/vrf_client"
@@ -12,6 +15,10 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   createMint,
   getAccount,
+  getAssociatedTokenAddress,
+  getOrCreateAssociatedTokenAccount,
+  mintTo,
+  Account,
 } from "@solana/spl-token"
 
 describe("vrf-client", () => {
@@ -33,19 +40,21 @@ describe("vrf-client", () => {
   let mint_one: PublicKey
   let mint_two: PublicKey
   let mint_three: PublicKey
+  let stake_mint: PublicKey
+  let stake_token_account: Account
   let lootbox: PublicKey
 
   before(async () => {
-    // switchboard = await SwitchboardTestContext.loadDevnetQueue(
-    //   provider,
-    //   "F8ce7MsckeZAbAGmxjJNetxYXQa9mKr9nnrC3qKubyYy",
-    //   5_000_000
-    // )
-    switchboard = await SwitchboardTestContext.loadFromEnv(
-      program.provider as anchor.AnchorProvider,
-      undefined,
-      5_000_000_000 // .005 wSOL
+    switchboard = await SwitchboardTestContext.loadDevnetQueue(
+      provider,
+      "F8ce7MsckeZAbAGmxjJNetxYXQa9mKr9nnrC3qKubyYy",
+      5_000_000
     )
+    // switchboard = await SwitchboardTestContext.loadFromEnv(
+    //   program.provider as anchor.AnchorProvider,
+    //   undefined,
+    //   5_000_000_000 // .005 wSOL
+    // )
     await switchboard.oracleHeartbeat()
     const queueData = await switchboard.queue.loadData()
     console.log(`oracleQueue: ${switchboard.queue.publicKey}`)
@@ -65,9 +74,39 @@ describe("vrf-client", () => {
     mint_one = await createMint(connection, wallet.payer, mintAuth, null, 0)
     mint_two = await createMint(connection, wallet.payer, mintAuth, null, 0)
     mint_three = await createMint(connection, wallet.payer, mintAuth, null, 0)
+
     console.log(mint_one.toString())
     console.log(mint_two.toBase58())
     console.log(mint_three.toString())
+
+    stake_mint = await createMint(
+      connection,
+      wallet.payer,
+      wallet.publicKey,
+      wallet.publicKey,
+      1
+    )
+
+    stake_token_account = await getOrCreateAssociatedTokenAccount(
+      connection,
+      wallet.payer,
+      stake_mint,
+      payer.publicKey
+    )
+
+    console.log(stake_token_account.address)
+
+    await mintTo(
+      connection,
+      wallet.payer,
+      stake_mint,
+      stake_token_account.address,
+      wallet.payer,
+      100_0
+    )
+
+    const account = await getAccount(connection, stake_token_account.address)
+    console.log(account.amount.toString())
   })
 
   it("init lootbox", async () => {
@@ -76,18 +115,18 @@ describe("vrf-client", () => {
       [Buffer.from("LOOTBOX")],
       program.programId
     )
-    const tx = await program.methods
-      .initLootbox()
-      .accounts({
-        lootbox: lootbox,
-        mintOne: mint_one,
-        mintTwo: mint_two,
-        mintThree: mint_three,
-        payer: payer.publicKey,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      })
-      .rpc()
-    console.log("init_client transaction signature", tx)
+    // const tx = await program.methods
+    //   .initLootbox()
+    //   .accounts({
+    //     lootbox: lootbox,
+    //     mintOne: mint_one,
+    //     mintTwo: mint_two,
+    //     mintThree: mint_three,
+    //     payer: payer.publicKey,
+    //     systemProgram: anchor.web3.SystemProgram.programId,
+    //   })
+    //   .rpc()
+    // console.log("init_client transaction signature", tx)
   })
 
   it("init_client", async () => {
@@ -115,7 +154,7 @@ describe("vrf-client", () => {
           { pubkey: vrfClientKey, isSigner: false, isWritable: true },
           { pubkey: vrfKeypair.publicKey, isSigner: false, isWritable: false },
           { pubkey: lootbox, isSigner: false, isWritable: false },
-          { pubkey: payer.publicKey, isSigner: true, isWritable: false },
+          { pubkey: payer.publicKey, isSigner: false, isWritable: false },
         ],
         ixData: new anchor.BorshInstructionCoder(program.idl).encode(
           "consumeRandomness",
@@ -155,7 +194,7 @@ describe("vrf-client", () => {
     // init vrf state account
     const tx = await program.methods
       .initClient({
-        maxResult: new anchor.BN(1),
+        maxResult: new anchor.BN(2),
       })
       .accounts({
         state: vrfClientKey,
@@ -207,6 +246,8 @@ describe("vrf-client", () => {
         payerWallet: switchboard.payerTokenWallet,
         payerAuthority: payer.publicKey,
         recentBlockhashes: anchor.web3.SYSVAR_RECENT_BLOCKHASHES_PUBKEY,
+        stakeMint: stake_mint,
+        stakeTokenAccount: stake_token_account.address,
         tokenProgram: TOKEN_PROGRAM_ID,
       })
       .rpc()
@@ -226,35 +267,38 @@ describe("vrf-client", () => {
     console.log(updated_state.mint.toString())
     console.log(updated_state.tokenAccount.toString())
 
-    return
-  })
-
-  it("mint_reward", async () => {
-    const state = await program.account.vrfClientState.fetch(vrfClientKey)
-
-    const request_signature = await program.methods
-      .mintRewards()
-      .accounts({
-        mint: state.mint,
-        tokenAccount: state.tokenAccount,
-        mintAuthority: mintAuth,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-        rent: SYSVAR_RENT_PUBKEY,
-        systemProgram: anchor.web3.SystemProgram.programId,
-        user: payer.publicKey,
-      })
-      .rpc()
-
-    console.log(
-      `request_randomness transaction signature: ${request_signature}`
-    )
-
-    const account = await getAccount(connection, state.tokenAccount)
-    console.log(account.amount)
+    const account = await getAccount(connection, stake_token_account.address)
+    console.log(account.amount.toString())
 
     return
   })
+
+  // it("mint_reward", async () => {
+  //   const state = await program.account.vrfClientState.fetch(vrfClientKey)
+
+  //   const request_signature = await program.methods
+  //     .mintRewards()
+  //     .accounts({
+  //       mint: state.mint,
+  //       tokenAccount: state.tokenAccount,
+  //       mintAuthority: mintAuth,
+  //       tokenProgram: TOKEN_PROGRAM_ID,
+  //       associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+  //       rent: SYSVAR_RENT_PUBKEY,
+  //       systemProgram: anchor.web3.SystemProgram.programId,
+  //       user: payer.publicKey,
+  //     })
+  //     .rpc()
+
+  //   console.log(
+  //     `request_randomness transaction signature: ${request_signature}`
+  //   )
+
+  //   const account = await getAccount(connection, state.tokenAccount)
+  //   console.log(account.amount)
+
+  //   return
+  // })
 })
 
 async function awaitCallback(

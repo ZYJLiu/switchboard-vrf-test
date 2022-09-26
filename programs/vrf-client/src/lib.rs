@@ -14,7 +14,7 @@ pub use switchboard_v2::{
 
 // use crate::cpi::*;
 
-declare_id!("5sbGMk8e86ukQ6wiWYZkfgc4zSs8D8VuD3jn9KkW5fWC");
+declare_id!("HdouAH5FeuxSUoeGJvLHibgW4cnfsuhqrrLwFhiZzQoa");
 
 #[program]
 pub mod vrf_client {

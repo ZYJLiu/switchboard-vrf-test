@@ -64,6 +64,10 @@ pub struct RequestRandomness<'info> {
     /// CHECK:
     #[account(address = solana_program::sysvar::recent_blockhashes::ID)]
     pub recent_blockhashes: AccountInfo<'info>,
+    #[account(mut)]
+    pub stake_mint: Account<'info, Mint>,
+    #[account(mut)]
+    pub stake_token_account: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
 }
 
@@ -122,6 +126,27 @@ impl RequestRandomness<'_> {
         });
 
         msg!("randomness requested successfully");
+
+        let cpi_ctx = CpiContext::new(
+            ctx.accounts.token_program.to_account_info(),
+            token::Burn {
+                mint: ctx.accounts.stake_mint.to_account_info(),
+                from: ctx.accounts.stake_token_account.to_account_info(),
+                authority: ctx.accounts.payer_authority.to_account_info(),
+            },
+        );
+        // token::burn(cpi_ctx, 100)?;
+        token::burn(
+            cpi_ctx,
+            (10 as u64)
+                .checked_mul(
+                    (10 as u64)
+                        .checked_pow(*&ctx.accounts.stake_mint.decimals as u32)
+                        .unwrap(),
+                )
+                .unwrap(),
+        )?;
+
         Ok(())
     }
 }
